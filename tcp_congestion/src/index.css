@@ -1,13 +1,99 @@
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #121212;
+  color: #E0E0E0;
+}
+
+h1 {
+  font-size: 2rem;
+  color: #BB86FC;
+  text-align: center;
+}
+
+p {
+  font-size: 1rem;
+  color: #B0BEC5;
+  line-height: 1.6;
 }
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #BB86FC;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+button {
+  background-color: #BB86FC;
+  color: #FFFFFF;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #9E4BDB;
+}
+
+input[type="number"],
+input[type="text"] {
+  background-color: #1E1E1E;
+  color: #E0E0E0;
+  border: 1px solid #BB86FC;
+  border-radius: 4px;
+  padding: 8px;
+  margin: 5px 0;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus {
+  outline: none;
+  border-color: #9E4BDB;
+}
+
+.App-header {
+  background-color: #1E1E1E;
+  padding: 20px;
+}
+
+.App-body {
+  padding: 20px;
+}
+
+.initialvalues,
+.network-conditions,
+.send {
+  background-color: #1E1E1E;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
+.pkthead {
+  margin-bottom: 10px;
+}
+
+.network-conditions {
+  display: flex; /* Use flexbox layout */
+  flex-direction: column; /* Align items vertically */
+  align-items: center; /* Center items horizontally */
+  justify-content: center; /* Center items vertically */
+  margin: 20px; /* Optional: Add margin for spacing */
+}
+
+.condition-inputs {
+  display: flex;
+  flex-direction: column; /* Align the label and input vertically */
+  align-items: center; /* Center items horizontally */
+  width: 100%; /* Ensure full width for inputs */
+}
+
+.condition-inputs > div {
+  margin: 10px 0; /* Add space between input groups */
 }
