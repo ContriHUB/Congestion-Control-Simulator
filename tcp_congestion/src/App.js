@@ -6,25 +6,31 @@ function App() {
   const [ssthresh, setSsthresh] = useState(64);
   const [sent, setSent] = useState([0]);
   const [lost, setLost] = useState([]);
-  const [lost_pkt, setLost_pkt] = useState(0);
   const [ack, setAck] = useState(0);
-  const [packetLossRate, setPacketLossRate] = useState(0);
-  const [latency, setLatency] = useState(500); // Increased default latency for slower simulation
-  const [bandwidth, setBandwidth] = useState(0);
+  const [lostPackets, setLostPackets] = useState([]);
+  const [rounds, setRounds] = useState(10);
+  const [currentRound, setCurrentRound] = useState(0);
   const [simulationRunning, setSimulationRunning] = useState(false);
 
   const handleChangeThresh = (event) => {
     setSsthresh(parseInt(event.target.value));
   };
 
-  const handleChange = (event) => {
-    setLost_pkt(parseInt(event.target.value));
+  const handleSetLostPackets = (event) => {
+    const packets = event.target.value.split(",").map(Number);
+    setLostPackets(packets);
+  };
+
+  const handleSetRounds = (event) => {
+    setRounds(parseInt(event.target.value));
   };
 
   const handleLost = () => {
-    if (lost.indexOf(lost_pkt) === -1 && sent.indexOf(lost_pkt) !== -1) {
-      setLost([...lost, lost_pkt]);
-    }
+    lostPackets.forEach((packet) => {
+      if (!lost.includes(packet) && sent.includes(packet)) {
+        setLost((prevLost) => [...prevLost, packet]);
+      }
+    });
   };
 
   const handleClick = () => {
@@ -66,6 +72,7 @@ function App() {
     setSent([0]);
     setLost([]);
     setAck(0);
+    setCurrentRound(0);
     setSimulationRunning(true);
   };
 
@@ -77,27 +84,23 @@ function App() {
   useEffect(() => {
     let interval;
 
-    if (simulationRunning) {
+    if (simulationRunning && currentRound < rounds) {
       interval = setInterval(() => {
-        const randomNum = Math.random();
+        handleLost(); // Mark lost packets
+        handleClick(); // Simulate packet acknowledgment
+        handleNext(); // Move to next window
 
-        // Simulate packet loss
-        if (randomNum < packetLossRate / 100) {
-          setLost((prev) => [...prev, sent[sent.length - 1]]);
+        setCurrentRound((prevRound) => prevRound + 1); // Increment round
+
+        if (currentRound >= rounds - 1) {
+          setSimulationRunning(false); // Stop the simulation once rounds are complete
+          clearInterval(interval); // Clear interval when simulation ends
         }
+      }, 1000); // 1 second delay for each round
 
-        // Simulate acknowledgment step-by-step
-        handleClick();
-
-        // Handle next simulation step
-        handleNext();
-      }, latency); // Use latency as the interval time for slowing down the process
-
-      // Cleanup on component unmount or when simulation stops
-      return () => clearInterval(interval);
+      return () => clearInterval(interval); // Clean up interval when component unmounts
     }
-  }, [simulationRunning, latency, packetLossRate, sent]);
-
+  }, [simulationRunning, currentRound, rounds, ssthresh]);
   return (
     <div className="App">
       <header className="App-header">Congestion Control Simulator</header>
@@ -112,12 +115,16 @@ function App() {
             <p>{ssthresh}</p>
           </div>
           <div className="pkthead">
-            <h3>Change Initial Slow Start Threshold</h3>
+            <h3>Set Initial Slow Start Threshold</h3>
             <input
               type="number"
               onChange={handleChangeThresh}
               value={ssthresh}
             />
+          </div>
+          <div className="pkthead">
+            <h3>Set Number of Rounds</h3>
+            <input type="number" onChange={handleSetRounds} value={rounds} />
           </div>
         </div>
 
@@ -125,26 +132,14 @@ function App() {
           <h3>Set Network Conditions</h3>
           <div className="condition-inputs">
             <div>
-              <label>Packet Loss Rate (%): </label>
+              <label>Lost Packets (comma-separated): </label>
               <input
-                type="number"
-                onChange={(e) => setPacketLossRate(e.target.value)}
+                type="text"
+                onChange={handleSetLostPackets}
+                placeholder="e.g. 1,2,3"
               />
             </div>
-            <div>
-              <label>Latency (ms): </label>
-              <input
-                type="number"
-                onChange={(e) => setLatency(e.target.value)}
-              />
-            </div>
-            <div>
-              <label>Bandwidth (kbps): </label>
-              <input
-                type="number"
-                onChange={(e) => setBandwidth(e.target.value)}
-              />
-            </div>
+
             <div className="button-container">
               <button
                 onClick={startSimulation}
@@ -186,36 +181,15 @@ function App() {
               </h5>
             </div>
           </div>
-
-          <div className="lost-packet-input">
-            <input
-              type="number"
-              onChange={handleChange}
-              value={lost_pkt}
-              placeholder="Enter lost packet number"
-              className="lost-input"
-            />
-            <button onClick={handleLost} className="simulate small-button">
-              Mark as Lost
-            </button>
-          </div>
         </div>
 
         <div className="action-buttons">
-          <button onClick={handleClick} className="simulate">
-            Simulate the packet transfer for current window
-          </button>
-
           <div className="ack">
             <h2>
               Received Acknowledgement after transfer:
               <span className="ack-text"> ACK{ack}</span>
             </h2>
           </div>
-
-          <button onClick={handleNext} className="simulate">
-            Shift the window for next simulation round.
-          </button>
         </div>
       </div>
     </div>

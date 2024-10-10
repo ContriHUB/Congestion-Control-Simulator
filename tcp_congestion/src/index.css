@@ -80,20 +80,20 @@ input[type="text"]:focus {
 }
 
 .network-conditions {
-  display: flex; /* Use flexbox layout */
-  flex-direction: column; /* Align items vertically */
-  align-items: center; /* Center items horizontally */
-  justify-content: center; /* Center items vertically */
-  margin: 20px; /* Optional: Add margin for spacing */
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  margin: 20px;
 }
 
 .condition-inputs {
   display: flex;
-  flex-direction: column; /* Align the label and input vertically */
-  align-items: center; /* Center items horizontally */
-  width: 100%; /* Ensure full width for inputs */
+  flex-direction: column; 
+  align-items: center; 
+  width: 100%; 
 }
 
 .condition-inputs > div {
-  margin: 10px 0; /* Add space between input groups */
+  margin: 10px 0; 
 }
