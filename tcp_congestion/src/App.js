@@ -11,6 +11,7 @@ function App() {
   const [selectedNodeId, setSelectedNodeId] = useState(0); // Selected source node
   const [selectedDestNodeId, setSelectedDestNodeId] = useState(1); // Selected destination node
   const [lost_pkt, setLost_pkt] = useState(0); // Packet to be marked as lost
+  const [duplicateAckCount, setDuplicateAckCount] = useState(0);
 
   // Handler for setting number of nodes
   const handleNumNodesChange = (event) => {
@@ -70,60 +71,109 @@ function App() {
   };
 
   const handleClick = () => {
-    if (!isConnected(selectedNodeId, selectedDestNodeId)) {
-      alert(`No connection exists between Node ${selectedNodeId} and Node ${selectedDestNodeId}`);
-      return;
-    }
-
-    setNodes(prevNodes => {
+    setNodes((prevNodes) => {
       const updatedNodes = [...prevNodes];
       const currentNode = { ...updatedNodes[selectedNodeId] };
-
+  
+      // Fast Retransmit Logic
       if (currentNode.lost.length > 0) {
-        currentNode.ack = currentNode.lost[0]; // Acknowledge the lost packet
+        console.log(`Node ${selectedNodeId}: Checking for lost packets...`);
+        
+        // Check for 3 duplicate ACKs to trigger fast retransmit
+        if (duplicateAckCount === 3) {
+          const lostPacket = currentNode.lost[0]; // The first lost packet to retransmit
+          currentNode.sent = [...currentNode.sent, lostPacket]; // Add lost packet back to sent
+          console.log(`Node ${selectedNodeId}: Fast retransmit for lost packet ${lostPacket}`);
+          
+          // Adjust the congestion window after retransmission
+          currentNode.cwnd = Math.min(currentNode.cwnd * 2, currentNode.ssthresh); // CWND is doubled, but capped at ssthresh
+          console.log(`Node ${selectedNodeId}: Updated congestion window (CWND): ${currentNode.cwnd}`);
+          setDuplicateAckCount(0); // Reset duplicate ACK count
+        } else {
+          // Acknowledge the lost packet but do not retransmit yet
+          currentNode.ack = currentNode.lost[0];
+          console.log(`Node ${selectedNodeId}: ACK for lost packet ${currentNode.ack}, duplicate ACK count: ${duplicateAckCount}`);
+        }
       } else {
-        currentNode.ack = currentNode.sent[currentNode.sent.length - 1] + 1; // ACK for the last sent packet
+        // Acknowledge the last sent packet if no packets are lost
+        currentNode.ack = currentNode.sent[currentNode.sent.length - 1] + 1; // Acknowledge the next packet
+        console.log(`Node ${selectedNodeId}: ACK for the last sent packet ${currentNode.ack}`);
       }
-
+  
+      // Increment duplicate ACK count if the same ACK is received
+      if (currentNode.ack === currentNode.sent[currentNode.sent.length - 1]) {
+        // Increment the duplicate ACK counter if the ACK is for the last sent packet
+        setDuplicateAckCount((prev) => prev + 1); // Increase duplicate ACK counter
+        console.log(`Node ${selectedNodeId}: Received duplicate ACK, count: ${duplicateAckCount + 1}`);
+      } else {
+        setDuplicateAckCount(0); // Reset if a new ACK is received
+        console.log(`Node ${selectedNodeId}: New ACK received, resetting duplicate ACK count.`);
+      }
+  
+      // Update the current node with the new state
       updatedNodes[selectedNodeId] = currentNode;
-      return updatedNodes;
+      return updatedNodes; // Return the updated nodes array
     });
   };
-
+  
   const handleNext = () => {
     if (!isConnected(selectedNodeId, selectedDestNodeId)) {
       alert(`No connection exists between Node ${selectedNodeId} and Node ${selectedDestNodeId}`);
       return;
     }
-
-    setNodes(prevNodes => {
+  
+    setNodes((prevNodes) => {
       const updatedNodes = [...prevNodes];
       const currentNode = { ...updatedNodes[selectedNodeId] };
-
-      if (currentNode.cwnd < currentNode.ssthresh && currentNode.lost.length === 0) {
-        // Increase cwnd
-        currentNode.cwnd += 1;
-        currentNode.sent = Array.from({ length: currentNode.cwnd + 1 }, (v, i) => currentNode.ack + 1 + i);
-      } else if (currentNode.lost.length !== 0) {
-        // Handle lost packets
-        let last = currentNode.sent[currentNode.sent.length - 1];
-        currentNode.cwnd += 1;
-        currentNode.sent = [...currentNode.lost]; // Reset sent to lost packets
-        if (currentNode.sent.length <= currentNode.cwnd) {
-          currentNode.sent = currentNode.sent.concat(Array.from({ length: currentNode.cwnd - currentNode.sent.length + 1 }, (v, i) => last + 1 + i));
+  
+      // Check if there are lost packets
+      if (currentNode.lost.length > 0) {
+        console.log(`Node ${selectedNodeId}: Handling lost packets.`);
+  
+        if (duplicateAckCount >= 3) {
+          // Fast retransmit logic
+          const lostPacket = currentNode.lost[0]; // Assume the first lost packet needs to be retransmitted
+          currentNode.sent.push(lostPacket); // Retransmit the lost packet
+          console.log(`Node ${selectedNodeId}: Fast retransmit for lost packet ${lostPacket}.`);
+  
+          // Adjust cwnd for fast recovery
+          currentNode.cwnd = Math.min(currentNode.cwnd * 2, currentNode.ssthresh);
+          console.log(`Node ${selectedNodeId}: Updated cwnd during fast recovery: ${currentNode.cwnd}`);
+        } else {
+          // Handle normal lost packets
+          console.log(`Node ${selectedNodeId}: Lost packets present but not enough duplicate ACKs.`);
+          currentNode.cwnd = Math.max(1, currentNode.cwnd / 2); // Halve cwnd for lost packets
+          currentNode.sent = currentNode.lost; // Reset sent to lost packets
+          currentNode.lost = []; // Clear lost packets
+          console.log(`Node ${selectedNodeId}: Sent packets updated to lost packets: ${JSON.stringify(currentNode.sent)}`);
         }
-        currentNode.lost = [];
       } else {
-        // If we reached the threshold
-        currentNode.cwnd = 1;
-        currentNode.ssthresh = Math.floor(currentNode.ssthresh / 2);
-        currentNode.sent = Array.from({ length: currentNode.cwnd + 1 }, (v, i) => currentNode.ack + 1 + i);
+        // Increase cwnd if no lost packets
+        if (currentNode.cwnd < currentNode.ssthresh) {
+          currentNode.cwnd += 1; // Increase cwnd in slow start phase
+          currentNode.sent = Array.from({ length: currentNode.cwnd }, (v, i) => currentNode.ack + 1 + i);
+          console.log(`Node ${selectedNodeId}: cwnd increased to ${currentNode.cwnd}. New sent packets: ${JSON.stringify(currentNode.sent)}`);
+          setDuplicateAckCount(0); // Reset duplicate ACK count
+        } else {
+          // If we reached the threshold
+          currentNode.cwnd = 1; // Reset cwnd
+          currentNode.ssthresh = Math.floor(currentNode.ssthresh / 2); // Halve ssthresh
+          currentNode.sent = Array.from({ length: currentNode.cwnd }, (v, i) => currentNode.ack + 1 + i);
+          console.log(`Node ${selectedNodeId}: Threshold reached. cwnd reset to 1, ssthresh halved to ${currentNode.ssthresh}. New sent packets: ${JSON.stringify(currentNode.sent)}`);
+        }
       }
-
+  
+      // Final logs for the state
+      console.log(`Node ${selectedNodeId}: Current cwnd (Congestion Window): ${currentNode.cwnd}`);
+      console.log(`Node ${selectedNodeId}: Current ssthresh (Slow Start Threshold): ${currentNode.ssthresh}`);
+      console.log(`Node ${selectedNodeId}: Sent Packets: ${JSON.stringify(currentNode.sent)}`);
+  
       updatedNodes[selectedNodeId] = currentNode;
-      return updatedNodes;
+      return updatedNodes; // Return the updated nodes
     });
   };
+  
+  
 
   return (
     <div className="App">
